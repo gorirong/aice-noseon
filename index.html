@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2f8f45">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AICE 노선">
+</head><body>
+<title>AICE 손풀기 노선</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* 레이아웃: 한 장씩 넘기는 카드 + 위에 지하철 노선처럼 이어진 진도 줄 */
+:root{
+  --bg:#f5f7f4; --panel:#ffffff; --ink:#1d2620; --muted:#5d6b62; --line:#d5ddd6;
+  --accent:#2f8f45; --accent-ink:#ffffff; --code-bg:#eef2ee; --ok:#2f8f45; --bad:#c2410c; --warn-bg:#fff4e8;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-code:"JetBrains Mono","D2Coding","Consolas","Malgun Gothic",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a16; --panel:#1c241f; --ink:#e4ebe5; --muted:#9aa89f; --line:#334038;
+  --accent:#4fbf68; --accent-ink:#0d150f; --code-bg:#111713; --ok:#5fd27a; --bad:#ff8a5c; --warn-bg:#2b2117; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a16; --panel:#1c241f; --ink:#e4ebe5; --muted:#9aa89f; --line:#334038;
+  --accent:#4fbf68; --accent-ink:#0d150f; --code-bg:#111713; --ok:#5fd27a; --bad:#ff8a5c; --warn-bg:#2b2117; color-scheme:dark}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:16px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 40px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header h1{font-size:1.25rem;margin:4px 0 0;text-wrap:balance}
+header p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+#ex-code{white-space:pre-wrap;word-break:break-word}
+#ex-code .cm{color:#8fb39a;font-family:"IBM Plex Sans KR",sans-serif;font-size:.92em}
+.tabs{display:flex;gap:6px}
+.tabs button{flex:1;padding-left:4px;padding-right:4px;white-space:nowrap;word-break:keep-all}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 12px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+button:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.5;cursor:default}
+/* 진도 노선 */
+.route{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px}
+.route ol{list-style:none;margin:0;padding:0;display:flex;justify-content:space-between;position:relative}
+.route ol::before{content:"";position:absolute;left:12px;right:12px;top:50%;height:4px;margin-top:-2px;background:var(--line);border-radius:2px}
+.route li{position:relative}
+.route li button{width:26px;height:26px;padding:0;border-radius:50%;border:3px solid var(--line);background:var(--panel);font-size:.72rem;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.route li.done button{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.route li.here button{border-color:var(--accent);color:var(--ink);transform:scale(1.15)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.eyebrow{font-size:.78rem;letter-spacing:.06em;color:var(--muted);font-weight:500}
+.card h2{font-size:1.15rem;margin:0;text-wrap:balance}
+.card p{margin:0}
+.exam{font-size:.8rem;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:99px;padding:1px 8px;align-self:flex-start}
+pre,code{font-family:var(--f-code)}
+pre{margin:0;background:var(--code-bg);border-radius:10px;padding:10px 12px;overflow-x:auto;font-size:.88rem;line-height:1.5}
+code{background:var(--code-bg);padding:0 4px;border-radius:4px;font-size:.9em}
+.task{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+.task h3{margin:0;font-size:1rem}
+.task ul{margin:0;padding-left:1.2em}
+textarea{width:100%;box-sizing:border-box;min-height:110px;font-family:var(--f-code);font-size:16px;line-height:1.45;
+  background:var(--code-bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
+.keys{display:flex;flex-wrap:wrap;gap:6px}
+.keys button{font-family:var(--f-code);padding:6px 10px;font-size:.95rem;min-width:38px}
+.keys button.word{font-size:.82rem}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row button{flex:1 1 auto}
+.out{display:flex;flex-direction:column;gap:8px;min-width:0}
+.out pre.err{color:var(--bad)}
+.verdict{border-radius:10px;padding:10px 12px;font-weight:500}
+.verdict.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ink);border:1px solid var(--ok)}
+.verdict.bad{background:var(--warn-bg);border:1px solid var(--bad)}
+.table{overflow-x:auto;font-size:.82rem}
+.table table{border-collapse:collapse;font-variant-numeric:tabular-nums}
+.table th,.table td{border:1px solid var(--line);padding:3px 7px;text-align:right;white-space:nowrap}
+.table th{background:var(--code-bg)}
+.status{font-size:.85rem;color:var(--muted)}
+.nav{display:flex;justify-content:space-between;gap:8px}
+.flash{display:grid;gap:10px}
+.flash button{text-align:left;padding:14px;display:flex;flex-direction:column;gap:6px;min-height:84px}
+.flash .front{font-weight:700}
+.flash .back{font-family:var(--f-code);font-size:.9rem;color:var(--accent)}
+.note{font-size:.85rem;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>AICE 손풀기 노선</h1>
+    <p>1주차 파이썬 첫걸음 · 2주차 표 다듬기(시험 5~7번) · 3주차 나누기 · 크기 맞추기(8~9번) · 4주차 모델 · 점수(10~13번). 폰에서 진짜 파이썬이 돌아가요.</p>
+  </header>
+  <div class="tabs" role="tablist">
+    <button id="tab-w1" aria-pressed="true">1주차</button>
+    <button id="tab-w2" aria-pressed="false">2주차</button>
+    <button id="tab-w3" aria-pressed="false">3주차</button>
+    <button id="tab-w4" aria-pressed="false">4주차</button>
+    <button id="tab-flash" aria-pressed="false">카드</button>
+  </div>
+  <nav class="route" aria-label="진도"><ol id="route"></ol></nav>
+  <main id="learn"></main>
+  <section id="flash" hidden>
+    <p class="note">눌러서 뒤집어요. 할 일을 보고 코드가 바로 떠오르면 통과예요.</p>
+    <div class="flash" id="flashlist"></div>
+  </section>
+  <p class="status" id="status">파이썬은 처음 [실행]을 누를 때 준비해요. 처음 한 번만 약 20MB를 받아요. 3 · 4주차는 머신러닝 도구 때문에 처음에 약 75MB를 더 받으니 꼭 와이파이에서 여세요.</p>
+</div>
+
+<script>
+// 올릴 수 있는 파일 형식 때문에 .whl/.zip 파일을 .wasm 이름으로 올렸어요. 파이썬이 원래 이름으로 찾으면 바뀐 이름으로 돌려줘요.
+const PARTS = {"scikit_learn-1.4.2-cp312-cp312-pyodide_2024_0_wasm32.whl.wasm": 2, "scipy-1.12.0-cp312-cp312-pyodide_2024_0_wasm32.whl.wasm": 4};
+(function(){ const f0 = window.fetch.bind(window);
+  window.fetch = function(u, o){ let s = (typeof u === 'string') ? u : (u && u.url) || String(u);
+    if(/\.(whl|zip)(\?.*)?$/.test(s)) s = s.replace(/\.(whl|zip)(\?.*)?$/, '.$1.wasm$2');
+    // 15MB가 넘는 파일은 조각(.p0.wasm, .p1.wasm …)으로 올렸어요. 받아서 하나로 이어 붙여요.
+    const base = s.split('?')[0].split('/').pop(), n = PARTS[base];
+    if(n){ const head = s.split('?')[0].replace(/\.wasm$/, '');
+      return Promise.all(Array.from({length:n}, (_, i)=>f0(head + '.p' + i + '.wasm').then(r=>{ if(!r.ok) throw new Error('조각 ' + i + ' 못 받음'); return r.blob(); })))
+        .then(bs=>new Response(new Blob(bs), { status:200, headers:{ 'Content-Type':'application/octet-stream' } })); }
+    return f0(s, o); };
+})();
+</script>
+<script src="py/pyodide.js"></script>
+<script>
+// ===== 연습용 가짜 데이터(실제 수치 아님) =====
+const CSV2 = `기온,열차수,출근,행사,혼잡도,붐빔
+-5,19,1,0,101,0
+3,21,1,0,110,0
+10,17,0,0,104,0
+19,8,1,0,172,1
+3,10,0,0,135,1
+7,21,0,0,82,0
+0,12,1,0,147,1
+-5,23,1,0,104,0
+19,23,1,0,103,0
+21,20,0,0,88,0
+29,19,0,0,104,0
+30,11,0,0,116,1
+-1,21,1,1,131,1
+29,17,0,0,95,0
+20,22,0,0,79,0
+23,15,0,0,109,0
+8,11,1,0,143,1
+-2,16,1,1,162,1
+24,17,0,0,100,0
+20,23,0,0,74,0
+3,13,1,0,124,1
+30,9,1,0,170,1
+-4,19,1,0,121,1
+13,18,0,1,120,1
+-5,22,0,0,84,0
+24,22,0,0,84,0
+-5,14,0,0,133,1
+1,8,1,0,163,1
+23,18,1,0,112,1
+22,24,0,0,77,0
+7,15,0,0,122,1
+12,20,0,0,90,0
+30,8,0,0,131,1
+22,19,0,0,95,0
+6,10,1,0,145,1
+28,23,0,1,92,0
+18,24,0,1,81,0
+-4,8,0,0,142,1
+25,19,1,1,137,1
+15,21,1,0,104,0
+32,22,0,0,82,0
+13,13,0,0,120,1
+21,12,0,0,132,1
+22,19,0,0,92,0
+13,24,1,0,88,0
+30,8,1,0,166,1
+-4,10,1,1,180,1
+-1,8,1,0,161,1
+16,18,1,0,105,0
+11,19,1,0,100,0
+-5,14,0,0,131,1
+8,22,1,0,108,0
+12,15,1,0,126,1
+7,15,0,0,124,1
+6,16,0,0,102,0
+22,15,1,0,128,1
+14,19,0,1,111,1
+23,14,0,0,106,0
+29,17,1,0,124,1
+22,14,0,1,123,1`;
+const CSV = `역명,호선,시간대,승차,하차
+시청,1,출근,4120,6380
+종각,1,출근,3550,7210
+강남,2,출근,9870,11240
+잠실,2,퇴근,8640,5120
+홍대입구,2,퇴근,10230,
+교대,3,출근,5210,6040
+충무로,4,출근,,4980
+여의도,5,출근,3980,9150
+광화문,5,퇴근,6210,2870
+이태원,6,퇴근,2140,1860
+고속터미널,7,출근,7340,8420
+가락시장,8,퇴근,1980,1450
+`;
+
+// ===== 수업 카드 =====
+// check: 사용자 코드 실행 뒤 같은 공간에서 돌리는 파이썬. ok(True/False)와 msg(문장)를 만든다.
+//        _ = 마지막 줄 값, _out = 화면에 찍힌 글자
+const LESSONS = [
+{ title:"칸을 실행해 봐요", body:`<p>시험 화면은 <b>칸</b>에 코드를 쓰고 실행하는 방식이에요. <code>print( )</code>는 괄호 안의 것을 화면에 보여 줘요. 글자는 따옴표로 감싸고, 숫자는 그냥 써요.</p>`,
+  example:`# print( ) = 괄호 안의 것을 화면에 보여 줘요. 글자는 따옴표로 감싸요\nprint('안녕하세요')\n\n# 숫자는 따옴표 없이 써요. 계산한 결과 7이 나와요\nprint(3 + 4)\n# 계산 기호: + 더하기, - 빼기, * 곱하기, / 나누기\n# 줄 맨 앞이나 뒤의 # 부터는 '메모(주석)'라서 파이썬이 읽지 않아요`,
+  task:{ ask:"<b>12 곱하기 5</b>의 결과를 화면에 보여 주세요.", list:["곱하기 기호는 <code>*</code>예요."],
+    start:"", hint:"print( ) 괄호 안에 12 * 5", answer:"print(12 * 5)",
+    check:`ok = _out.strip().split('\\n')[-1].strip() == '60' if _out.strip() else False\nmsg = '화면에 60이 나왔어요.' if ok else '화면 마지막 줄이 60이 아니에요. print(12 * 5) 모양인지 보세요.'` }},
+{ title:"변수에 담기", body:`<p><b>변수</b>는 값에 붙이는 이름표예요. <code>=</code>는 "같다"가 아니라 <b>오른쪽 값을 왼쪽 이름에 담아라</b>라는 뜻이에요. 시험은 "<b>답안3 변수에 저장하세요</b>"처럼 답을 변수에 담게 해요.</p>`,
+  example:`# '승차'라는 이름표에 4120을 담아요 (= 는 '같다'가 아니라 '담아라')\n승차 = 4120\n하차 = 6380\n\n# 이름표에 든 값끼리 더해서 '합계'에 담아요\n합계 = 승차 + 하차\n\n# 10500\nprint(합계)`,
+  task:{ ask:"강남역 출근 승차가 9870명, 하차가 11240명이에요. 둘을 더한 값을 <b>답안2</b> 변수에 저장하세요.", list:["변수명: <code>답안2</code>"],
+    start:"", hint:"답안2 = 9870 + 11240", answer:"답안2 = 9870 + 11240\nprint(답안2)",
+    check:`ok = '답안2' in dir() and 답안2 == 21110\nmsg = '답안2에 21110이 들어갔어요.' if ok else ('답안2라는 변수가 없어요. 이름을 정확히 썼는지 보세요.' if '답안2' not in dir() else f'답안2에 {답안2!r}이 들어 있어요. 21110이어야 해요.')` }},
+{ title:"글자에는 따옴표", body:`<p>파이썬은 따옴표가 없으면 <b>변수 이름</b>으로 알아들어요. 그래서 <code>역 = 강남</code>이라고 쓰면 "강남이라는 변수가 어디 있냐"며 <b>NameError</b>를 내요. 글자(문자열)는 꼭 <code>'강남'</code>처럼 감싸요.</p>`,
+  example:`# 따옴표 = 글자(문자열). 따옴표가 없으면 '강남'이라는 변수를 찾다가 에러가 나요\n역 = '강남'\n\n# 숫자는 따옴표 없이\n호선 = 2\n\n# 쉼표로 나누면 여러 개를 한 줄에 보여 줘요\nprint(역, 호선)`,
+  task:{ ask:"<b>오류 고치기</b> 문제예요. 아래 코드를 실행하면 에러가 나요. 고쳐서 실행하세요.", list:["<code>역이름</code>에 글자 홍대입구가 들어가야 해요."],
+    start:"# 아래의 코드를 정정하고 실행하세요.\n역이름 = 홍대입구\nprint(역이름)", hint:"홍대입구 양쪽에 따옴표를 붙여요.", answer:"역이름 = '홍대입구'\nprint(역이름)",
+    check:`ok = '역이름' in dir() and 역이름 == '홍대입구'\nmsg = '고쳤어요. 이제 역이름에 글자가 들어 있어요.' if ok else '역이름에 글자 홍대입구가 들어 있지 않아요.'` }},
+{ title:"여러 개는 리스트로", body:`<p>대괄호 <code>[ ]</code> 안에 쉼표로 늘어놓으면 <b>리스트</b>예요. 나중에 시험에서 "이 열들을 지우세요"처럼 <b>열 이름 여러 개</b>를 넘길 때 이 모양을 써요. <code>len( )</code>은 개수를 세요.</p>`,
+  example:`# [ ] 안에 쉼표로 늘어놓으면 리스트(목록)\n역목록 = ['시청', '강남', '잠실']\n\n# len = length(길이). 몇 개 들었는지 세요 → 3\nprint(len(역목록))\n\n# 리스트[번호] = 그 자리 하나 꺼내기. 파이썬은 0번부터 세요 → 시청\nprint(역목록[0])`,
+  task:{ ask:"'교대', '충무로', '여의도', '광화문' 네 역을 담은 리스트를 <b>역목록</b>에 저장하고, 개수를 <b>답안4</b>에 저장하세요.", list:["변수명: <code>역목록</code>, <code>답안4</code>"],
+    start:"", hint:"역목록 = ['교대', ...] 다음 줄에 답안4 = len(역목록)", answer:"역목록 = ['교대', '충무로', '여의도', '광화문']\n답안4 = len(역목록)\nprint(답안4)",
+    check:`ok = '역목록' in dir() and list(역목록) == ['교대','충무로','여의도','광화문'] and '답안4' in dir() and 답안4 == 4\nmsg = '리스트와 개수 모두 맞아요.' if ok else ('역목록이 없거나 네 역이 순서대로 들어 있지 않아요.' if not ('역목록' in dir() and list(역목록)==['교대','충무로','여의도','광화문']) else '답안4에 개수 4가 들어 있지 않아요. len( )을 써 보세요.')` }},
+{ title:"함수 부르기", body:`<p><b>함수</b>는 이름 뒤에 괄호를 붙여 부르는 도구예요. 괄호 안에 재료를 넣으면 결과를 돌려줘요. 시험에는 "<b>반올림해서 답안9에 저장</b>" 같은 문제가 나와요.</p>`,
+  example:`# 함수 = 이름 뒤에 ( )를 붙여 쓰는 도구. ( ) 안에 재료를 넣으면 결과를 돌려줘요\n\n# round = 반올림 → 4\nprint(round(3.7))\n\n# 쉼표 뒤 숫자 = 소수 몇째 자리까지 → 3.14\nprint(round(3.14159, 2))\n\n# max = 가장 큰 값\nprint(max(4120, 9870))\n\n# min = 가장 작은 값\nprint(min(4120, 9870))\n\n# str = string(문자열). 결과를 글자 '4'로 바꿔요\nprint(str(round(3.7)))`,
+  task:{ ask:"평균 승차 인원이 6283.58명이라고 해요. 이 값을 <b>반올림</b>해서 <b>답안5</b>에 저장하세요.", list:["변수명: <code>답안5</code>"],
+    start:"", hint:"답안5 = round(6283.58)", answer:"답안5 = round(6283.58)\nprint(답안5)",
+    check:`ok = '답안5' in dir() and 답안5 == 6284\nmsg = '6284, 맞아요.' if ok else '답안5에 6284가 들어 있지 않아요. round( )를 썼는지 보세요.'` }},
+{ title:"도구 불러오기", exam:"시험 1번 유형", body:`<p>파이썬에 기본으로 없는 기능은 <b>라이브러리</b>(남이 만들어 둔 도구 상자)를 불러와서 써요. 불러오는 방법은 둘 다 맞아요.</p><ul><li><code>import math</code> → 그다음부터 <code>math.sqrt(16)</code>처럼 <b>원래 이름</b>으로 불러요.</li><li><code>import math as m</code> → <b>as</b>는 "별명은 ~로 하자"예요. 그다음부터 <code>m.sqrt(16)</code>처럼 <b>별명</b>으로 불러요. 이때 원래 이름 math는 못 써요(NameError).</li></ul><p><b>점(.)</b>은 "~ 안에 든"이라는 뜻이에요. <code>m.sqrt</code> = m(math 상자) 안에 든 sqrt 도구. sqrt는 square root(제곱근)의 줄임말이에요.</p><p>이름이 길어서 다들 별명을 써요. pandas는 <code>pd</code>, numpy는 <code>np</code>로 거의 정해져 있고, 시험도 "pd로 불러오세요"처럼 별명을 알려 줘요.</p>`,
+  example:`# math(수학 도구 상자)를 불러와요\nimport math\n\n# 점(.) = '~ 안의'. math 안의 sqrt(제곱근) → 4.0\nprint(math.sqrt(16))\n\n# as m = '별명은 m으로 하자'. 이제 m이라고 부르면 math예요\nimport math as m\n\n# 별명으로 불러도 결과는 같아요 → 4.0\nprint(m.sqrt(16))`,
+  task:{ ask:"표 데이터를 다루는 pandas 라이브러리를 별칭(alias) <b>pd</b>로 불러오세요.", list:["처음엔 준비하느라 몇 초 걸려요."],
+    start:"", hint:"import ○○ as ○○", answer:"import pandas as pd", needPandas:true,
+    check:`import sys\nok = 'pd' in dir() and getattr(pd,'__name__','') == 'pandas'\nmsg = 'pandas를 pd로 불러왔어요.' if ok else ('pd라는 이름이 없어요. as pd까지 썼는지 보세요.' if 'pd' not in dir() else 'pd가 pandas가 아니에요.')` }},
+{ title:"표 읽어 오기", exam:"시험 2번 유형", body:`<p>CSV는 쉼표로 칸을 나눈 표 파일이에요. <code>pd.read_csv('파일이름')</code>으로 읽으면 <b>데이터프레임</b>(엑셀 시트 같은 표)이 돼요. 보통 <code>df</code>라는 변수에 담아요. <code>df.head(5)</code>는 위에서 5줄만 보여 줘요. 칸의 <b>마지막 줄</b>에 쓴 값은 print 없이도 화면에 나와요.</p>`,
+  example:`# 표 도구 상자 pandas를 별명 pd로 불러와요\nimport pandas as pd\n\n# pd 안의 read_csv(CSV 읽기)로 파일을 읽어 df에 담아요\ndf = pd.read_csv('subway.csv')\n\n# df 안의 head(머리) 기능: 위에서 2줄만. 마지막 줄은 print 없이도 보여요\ndf.head(2)\n# df = data frame(데이터프레임 = 표)의 줄임말. 다른 이름도 되지만 다들 df라고 써요`,
+  task:{ ask:"<b>subway.csv</b> 파일을 읽어 데이터프레임 변수 <b>df</b>에 저장하고, <b>첫 3개 행</b>을 출력하세요.", list:["데이터프레임 변수명: <code>df</code>","파일명: <code>subway.csv</code>","pandas는 이미 pd로 불러와 있어요."],
+    start:"", setup:"import pandas as pd", hint:"df = pd.read_csv('subway.csv') 다음 줄에 df.head(3)", answer:"df = pd.read_csv('subway.csv')\ndf.head(3)", needPandas:true,
+    check:`import pandas as _pd\nok1 = 'df' in dir() and isinstance(df,_pd.DataFrame) and df.shape == (12,5)\nok2 = isinstance(_, _pd.DataFrame) and len(_) == 3\nok = ok1 and ok2\nmsg = '표를 읽고 첫 3줄을 보여 줬어요.' if ok else ('df에 표가 제대로 안 들어갔어요. 파일 이름의 따옴표와 철자를 보세요.' if not ok1 else '마지막 줄에서 첫 3줄을 보여 줘야 해요. df.head(3)')` }},
+{ title:"에러 메시지 읽기", body:`<p>시험장에서는 혼자 에러를 고쳐야 해요. 겁먹지 말고 <b>맨 아래 줄</b>만 보면 돼요.</p><ul><li><b>SyntaxError</b>: 괄호 · 따옴표 짝이 안 맞거나 기호를 빠뜨림</li><li><b>NameError</b>: 그런 이름이 없음(철자, 따옴표 빠뜨림, 불러오기 안 함)</li><li><b>KeyError</b>: 그런 열 이름이 없음</li><li><b>AttributeError</b>: 그런 기능이 없음(점 뒤 철자)</li></ul>`,
+  example:`# 일부러 틀린 코드예요. 실행하면 맨 아래 줄에 SyntaxError가 나와요\nprint('괄호를 닫는 걸 잊으면 SyntaxError'`,
+  task:{ ask:"<b>오류 고치기</b> 문제예요. 에러가 두 군데 있어요. 고쳐서 df의 첫 5개 행이 나오게 하세요.", list:["pandas는 이미 pd로 불러와 있어요.","하나 고치면 다음 에러가 나와요. 맨 아래 줄을 읽어요."],
+    start:"# 아래의 코드를 정정하고 실행하세요.\ndf = pd.read_csv(subway.csv)\ndf.head(5", setup:"import pandas as pd", hint:"파일 이름에 따옴표, head 괄호 닫기", answer:"df = pd.read_csv('subway.csv')\ndf.head(5)", needPandas:true,
+    check:`import pandas as _pd\nok = 'df' in dir() and isinstance(df,_pd.DataFrame) and isinstance(_, _pd.DataFrame) and len(_) == 5\nmsg = '두 군데 다 고쳤어요.' if ok else '아직 첫 5개 행이 나오지 않았어요.'` }},
+{ title:"표 크기 재기", body:`<p>표를 읽으면 먼저 크기부터 봐요. <code>df.shape</code>는 (행 개수, 열 개수)를 알려 줘요. 괄호 없이 쓰는 점에 주의해요. 행 개수만 원하면 <code>df.shape[0]</code>이나 <code>len(df)</code>를 써요. <code>df.info()</code>는 열마다 빈칸이 몇 개인지까지 보여 줘요.</p>`,
+  example:`df = pd.read_csv('subway.csv')\n\n# shape = 모양. (행 개수, 열 개수). 함수가 아니라 표가 가진 정보라서 ( ) 없이 써요\nprint(df.shape)\n\n# [0] = 첫 번째 자리 = 행 개수. [1]이면 열 개수\nprint(df.shape[0])\n\n# len(표) = 행 개수. 바로 위와 같아요\nprint(len(df))\n\n# info = 정보. 열마다 빈칸 아닌 값의 개수와 자료형(int 정수, float 소수, object 글자)\ndf.info()`,
+  task:{ ask:"df의 <b>행 개수</b>를 <b>답안9</b>에, <b>열 개수</b>를 <b>답안9_2</b>에 저장하세요.", list:["df는 이미 읽어 와 있어요.","숫자를 눈으로 보고 쓰지 말고 코드로 구해요."],
+    start:"", setup:"import pandas as pd\ndf = pd.read_csv('subway.csv')", hint:"답안9 = df.shape[0]", answer:"답안9 = df.shape[0]\n답안9_2 = df.shape[1]\nprint(답안9, 답안9_2)", needPandas:true,
+    check:`ok = '답안9' in dir() and 답안9 == 12 and '답안9_2' in dir() and 답안9_2 == 5\nmsg = '12행 5열, 맞아요. 1주차 끝!' if ok else '답안9는 12, 답안9_2는 5가 되어야 해요.'` }},
+];
+
+// ===== 2주차: 표 다듬기 (모두 subway.csv, pandas는 pd로 미리 불러와 있음) =====
+const PD = "import pandas as pd\ndf = pd.read_csv('subway.csv')";
+const W2 = [
+{ title:"열 꺼내기", body:`<p>열 하나는 <code>df['열']</code>, 여러 개는 대괄호 <b>두 겹</b> <code>df[['열1', '열2']]</code>이에요. 안쪽 대괄호는 1주차에 배운 리스트예요.</p>`,
+  example:`# 열 하나: 대괄호 안에 열 이름(따옴표!)\nprint(df['역명'].head(3))\n\n# 열 여러 개: 바깥 [ ] = 꺼내기, 안쪽 [ ] = 열 이름 리스트\ndf[['역명', '승차']].head(3)`,
+  task:{ ask:"df에서 <b>역명, 호선, 하차</b> 세 열만 꺼내 <b>작은표</b>에 담고 보여 주세요.", list:["df는 이미 읽어 와 있어요."],
+    start:"", setup:PD, hint:"작은표 = df[['역명', '호선', '하차']]", answer:"작은표 = df[['역명', '호선', '하차']]\n작은표", needPandas:true,
+    check:`ok = '작은표' in dir() and list(작은표.columns) == ['역명','호선','하차'] and len(작은표) == 12\nmsg = '세 열을 꺼냈어요.' if ok else '작은표의 열이 역명, 호선, 하차 순서가 아니에요. 대괄호 두 겹인지 보세요.'` }},
+{ title:"조건으로 행 거르기", exam:"시험 5번 유형", body:`<p><code>df[조건]</code>은 조건이 맞는 행만 남겨요. 시험의 "<b>300 이상인 행을 삭제</b>"는 거꾸로 "<b>300 미만만 남기기</b>"로 바꿔 쓰는 게 핵심이에요.</p>`,
+  example:`# 행마다 True(맞음) / False(아님)가 나와요\nprint(df['승차'] >= 8000)\n\n# df[조건] = True인 행만 남겨요\ndf[df['승차'] >= 8000]\n# 비교 기호: >= 이상, > 초과, <= 이하, < 미만, == 같다(= 두 개!), != 다르다`,
+  task:{ ask:"승차가 <b>5000 이상</b>인 행을 <b>삭제</b>하세요. 즉 5000 미만만 남겨 <b>df_temp</b>에 담으세요.", list:["승차가 빈칸인 행도 같이 빠져요(빈칸은 비교하면 False)."],
+    start:"", setup:PD, hint:"df_temp = df[df['승차'] < 5000]", answer:"df_temp = df[df['승차'] < 5000]\ndf_temp", needPandas:true,
+    check:`ok = 'df_temp' in dir() and len(df_temp) == 5 and df_temp['승차'].max() < 5000\nmsg = '5000 미만인 5개 역만 남았어요.' if ok else '남길 조건(승차 < 5000)을 썼는지 보세요.'` }},
+{ title:"조건 두 개: & 와 |", body:`<p>조건이 둘이면 <code>&</code>(그리고), <code>|</code>(또는)를 쓰고 <b>조건마다 괄호</b>를 쳐요. 파이썬의 and · or는 표에서 쓰면 에러가 나요.</p>`,
+  example:`# & = 그리고(둘 다 맞아야), | = 또는(하나만 맞아도). | 는 세로 막대 기호예요\n# 조건마다 ( )로 감싸야 해요. 안 감싸면 에러가 나요\ndf[(df['호선'] == 2) & (df['시간대'] == '퇴근')]`,
+  task:{ ask:"<b>시간대가 출근</b>이고 <b>하차가 7000보다 큰</b> 행만 골라 <b>답안</b>에 담으세요.", list:["조건마다 괄호!"],
+    start:"", setup:PD, hint:"(df['시간대'] == '출근') & (df['하차'] > 7000)", answer:"답안 = df[(df['시간대'] == '출근') & (df['하차'] > 7000)]\n답안", needPandas:true,
+    check:`ok = '답안' in dir() and hasattr(답안,'shape') and sorted(답안['역명']) == sorted(['종각','강남','여의도','고속터미널'])\nmsg = '네 역(종각 · 강남 · 여의도 · 고속터미널)이 나왔어요.' if ok else '출근이면서 하차 7000 초과인 역은 4개여야 해요.'` }},
+{ title:"열 지우기 drop", body:`<p><code>df.drop('열', axis=1)</code>. <b>axis=1이 열, axis=0이 행</b>이에요. 여러 열은 <code>df.drop(columns=['A', 'B'])</code>. 시험 정정 문제에 axis를 틀리게 써 놓는 일이 많아요.</p>`,
+  example:`# drop = 버리기. axis = 방향. axis=1 → 열을 지워요, axis=0 → 행(줄 번호)을 지워요\ndf.drop('시간대', axis=1).head(2)\n# 결과를 어딘가에 담지 않으면 df 자체는 그대로예요. 남기려면 df_temp = df.drop(...)`,
+  task:{ ask:"<b>오류 고치기</b>: 아래 코드는 '호선' 열을 지우려는데 에러가 나요. 고쳐서 결과를 <b>df_temp</b>에 담으세요.", list:["에러 마지막 줄을 읽어 보세요."],
+    start:"# 아래의 코드를 정정하고 실행하세요.\ndf_temp = df.drop('호선', axis=0)", setup:PD, hint:"열은 axis=1", answer:"df_temp = df.drop('호선', axis=1)", needPandas:true,
+    check:`ok = 'df_temp' in dir() and '호선' not in df_temp.columns and len(df_temp) == 12\nmsg = '호선 열만 지웠어요.' if ok else '호선 열이 남았거나 행이 줄었어요.'` }},
+{ title:"결측치 세기", exam:"시험 6번 유형", body:`<p><code>df.isnull()</code>은 칸마다 빈칸이면 True. 뒤에 <code>.sum()</code>을 붙이면 <b>열별 개수</b>, 한 번 더 <code>.sum()</code>이면 <b>전체 개수</b>예요.</p>`,
+  example:`# 결측치 = 비어 있는 칸. 파이썬에선 NaN(Not a Number)으로 보여요\n\n# isnull = '비었나?'. 칸마다 True(빈칸) / False\nprint(df.isnull().head(6))\n\n# 점을 이어 쓰면 앞 결과에 다음 기능을 써요. True를 1로 세서 열별 합계\nprint(df.isnull().sum())\n\n# 한 번 더 더하면 표 전체 빈칸 수\ndf.isnull().sum().sum()`,
+  task:{ ask:"df의 <b>전체 결측치 개수</b>를 코드로 구해 <b>답안6_1</b>에 저장하세요.", list:["눈으로 세지 말고 코드로!"],
+    start:"", setup:PD, hint:"df.isnull().sum().sum()", answer:"print(df.isnull().sum())\n답안6_1 = df.isnull().sum().sum()", needPandas:true,
+    check:`ok = '답안6_1' in dir() and int(답안6_1) == 2\nmsg = '빈칸 2개, 맞아요.' if ok else '전체 결측치는 2개예요. .sum()을 두 번 붙였는지 보세요.'` }},
+{ title:"결측치 지우기 dropna", body:`<p><code>df.dropna()</code>는 빈칸이 하나라도 있는 행을 통째로 지워요. 결과를 새 이름에 담는 걸 잊지 마세요.</p>`,
+  example:`# 지우기 전 행 수\nprint(len(df))\n\n# dropna = drop(버리기) + na(빈칸). 빈칸 있는 행을 통째로 버린 새 표\ndf_na = df.dropna()\n\n# 지운 뒤 행 수\nprint(len(df_na))\n# df_na처럼 새 이름에 담아야 결과가 남아요. df 자체는 그대로예요`,
+  task:{ ask:"결측치가 있는 행을 모두 삭제해 <b>df_na</b>에 담고, 남은 행 개수를 <b>답안</b>에 저장하세요.", list:[],
+    start:"", setup:PD, hint:"df_na = df.dropna() 다음 답안 = len(df_na)", answer:"df_na = df.dropna()\n답안 = len(df_na)", needPandas:true,
+    check:`ok = 'df_na' in dir() and df_na.isnull().sum().sum() == 0 and '답안' in dir() and 답안 == 10\nmsg = '10행이 남았어요.' if ok else 'df_na에 빈칸이 없어야 하고, 답안은 10이어야 해요.'` }},
+{ title:"결측치 채우기 fillna", body:`<p>지우지 않고 채울 수도 있어요. <code>df['열'].fillna(값)</code> — 값 자리에 평균 <code>df['열'].mean()</code>, 중앙값 <code>.median()</code>, 0 등을 넣어요. 결과를 다시 그 열에 담아야 바뀌어요.</p>`,
+  example:`# mean = 평균. 빈칸은 빼고 계산해요\nprint(df['승차'].mean())\n\n# fillna = fill(채우기) + na(빈칸). 0으로 채운 결과를 다시 하차 열에 담아요(덮어쓰기)\ndf['하차'] = df['하차'].fillna(0)\n\n# tail = 꼬리: 아래에서 8줄\ndf.tail(8)`,
+  task:{ ask:"승차 빈칸은 <b>승차의 평균</b>으로, 하차 빈칸은 <b>0</b>으로 채우세요. (df를 바로 바꿔요)", list:["df['승차'] = df['승차'].fillna(...) 꼴"],
+    start:"", setup:PD, hint:"df['승차'] = df['승차'].fillna(df['승차'].mean())", answer:"df['승차'] = df['승차'].fillna(df['승차'].mean())\ndf['하차'] = df['하차'].fillna(0)\nprint(df.isnull().sum())", needPandas:true,
+    check:`import pandas as _pd\n_o = _pd.read_csv('subway.csv')\nok = df.isnull().sum().sum() == 0 and abs(df.loc[6,'승차'] - _o['승차'].mean()) < 0.01 and df.loc[4,'하차'] == 0\nmsg = '두 열 모두 채웠어요.' if ok else '승차는 평균, 하차는 0으로 채웠는지 보세요.'` }},
+{ title:"값별 개수 value_counts", body:`<p><code>df['열'].value_counts()</code>는 값마다 몇 번 나왔는지 세요. 많은 순서로 나와요. 특정 값의 개수는 뒤에 <code>['값']</code>.</p>`,
+  example:`# value(값) + counts(세기): 값마다 몇 번 나왔는지, 많은 순서로 보여 줘요\nprint(df['호선'].value_counts())\n\n# 뒤에 ['값']을 붙이면 그 값의 개수 하나만\ndf['시간대'].value_counts()['출근']`,
+  task:{ ask:"시간대가 <b>'퇴근'</b>인 기록이 몇 개인지 코드로 구해 <b>답안7</b>에 저장하세요.", list:[],
+    start:"", setup:PD, hint:"df['시간대'].value_counts()['퇴근']", answer:"print(df['시간대'].value_counts())\n답안7 = df['시간대'].value_counts()['퇴근']", needPandas:true,
+    check:`ok = '답안7' in dir() and int(답안7) == 5\nmsg = '퇴근 5개, 맞아요.' if ok else '퇴근은 5개예요.'` }},
+{ title:"원-핫 인코딩", exam:"시험 7번 유형", body:`<p>모델은 글자를 못 읽어서 <code>pd.get_dummies(data=df, columns=['열'])</code>로 글자 열을 0/1 열 여러 개로 펼쳐요. 시험에선 빈칸 채우기로 <b>get_dummies</b>와 <b>columns</b>를 자주 물어요.</p>`,
+  example:`# 시간대 열(출근/퇴근 글자)을 0/1 열 두 개로 펼쳐요 → 시간대_출근, 시간대_퇴근\n# data= 어느 표에서, columns= 어느 열을 펼칠지(리스트로)\n# get_dummies = '가짜(dummy) 열 만들기'. True/False로 보이면 1/0과 같은 뜻이에요\npd.get_dummies(data=df[['역명','시간대']], columns=['시간대']).head(3)`,
+  task:{ ask:"<b>빈칸 채우기</b>: 시간대 열을 원-핫 인코딩해 <b>df_preset</b>에 담으세요. 빈칸 내용은 '답안7_1', '답안7_2'에 문자열로.", list:["빈칸 &lt;blank7-1&gt;, &lt;blank7-2&gt;를 고쳐 쓰고 실행해요."],
+    start:"# 아래 코드의 빈칸을 채우고 실행하세요.\ndf_preset = pd.<blank7-1>(data=df, <blank7-2>=['시간대'])\n답안7_1 = ''\n답안7_2 = ''", setup:PD, hint:"get_dummies, columns", answer:"df_preset = pd.get_dummies(data=df, columns=['시간대'])\n답안7_1 = 'get_dummies'\n답안7_2 = 'columns'", needPandas:true,
+    check:`ok = 'df_preset' in dir() and '시간대_출근' in df_preset.columns and 답안7_1 == 'get_dummies' and 답안7_2 == 'columns'\nmsg = '시간대_출근 · 시간대_퇴근 열이 생겼어요.' if ok else '빈칸을 다 고쳤는지, 답안 문자열도 썼는지 보세요.'` }},
+{ title:"2주차 마무리: 한 번에", body:`<p>시험 5~7번은 이 순서로 이어져요: <b>이상한 행 지우기 → 열 지우기 → 결측치 처리 → 원-핫</b>. 앞 결과를 다음 단계 이름으로 넘기는 흐름(df → df_temp → df_na → df_preset)을 익혀요.</p>`,
+  example:`# 이름 넘기기: 한 단계 결과를 새 이름에 담고, 다음 단계는 그 이름에서 시작해요\n# df → df_temp (이상한 행 · 열 지움) → df_na (빈칸 행 지움) → df_preset (원-핫)\n# 이름은 시험 문제가 정해 줘요. 문제에 적힌 이름을 그대로 쓰세요`,
+  task:{ ask:"차례로 하세요. ① 승차 10000 이상 행 삭제 → <b>df_temp</b> ② df_temp에서 '호선' 열 삭제 ③ 결측치 행 삭제 → <b>df_na</b> ④ 시간대 원-핫 → <b>df_preset</b>", list:["df_preset은 10행 5열이 나와야 해요."],
+    start:"", setup:PD, hint:"df_temp = df[df['승차'] < 10000] → drop → dropna → get_dummies", answer:"df_temp = df[df['승차'] < 10000]\ndf_temp = df_temp.drop('호선', axis=1)\ndf_na = df_temp.dropna()\ndf_preset = pd.get_dummies(data=df_na, columns=['시간대'])\ndf_preset", needPandas:true,
+    check:`ok = 'df_preset' in dir() and df_preset.shape == (10, 5) and '호선' not in df_preset.columns\nmsg = '네 단계 모두 맞아요. 2주차 끝!' if ok else 'df_preset이 10행 5열이 아니에요. 단계를 하나씩 확인해 보세요.'` }},
+];
+W2.forEach(L=>{ L.week = 2; LESSONS.push(L); });
+LESSONS.forEach(L=>{ if(!L.week) L.week = 1; });
+
+const FLASH = [
+  ["열 여러 개 꺼내기","df[['열1', '열2']]"],["조건으로 거르기","df[df['열'] < 300]"],["조건 두 개(그리고 / 또는)","(조건1) & (조건2)  /  (조건1) | (조건2)"],
+  ["열 지우기","df.drop('열', axis=1)"],["결측치 열별 개수","df.isnull().sum()"],["결측치 전체 개수","df.isnull().sum().sum()"],
+  ["결측치 행 지우기","df.dropna()"],["평균으로 채우기","df['열'].fillna(df['열'].mean())"],["원-핫 인코딩","pd.get_dummies(data=df, columns=['열'])"],
+  ["화면에 보여 주기","print(값)"],["변수에 담기","답안3 = 값"],["글자(문자열) 쓰기","'강남'  ← 따옴표"],
+  ["여러 개 묶기(리스트)","['시청', '강남']"],["개수 세기","len(리스트)"],["반올림","round(값)"],
+  ["pandas 불러오기","import pandas as pd"],["CSV 읽어 df에 담기","df = pd.read_csv('파일.csv')"],
+  ["위에서 4줄 보기","df.head(4)"],["표 크기(행, 열)","df.shape"],["행 개수","df.shape[0]  또는  len(df)"],
+  ["열마다 빈칸 · 자료형 보기","df.info()"],
+];
+
+// ===== 3 · 4주차: congestion.csv (60행, 연습용 가짜 숫자). scikit-learn을 씀 =====
+const P3 = "import pandas as pd\ndf = pd.read_csv('congestion.csv')";
+const P3X = P3 + "\nX = df.drop(['혼잡도', '붐빔'], axis=1)";
+const P3R = P3X + "\ny = df['혼잡도']\nfrom sklearn.model_selection import train_test_split\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)";
+const P3C = P3X + "\ny = df['붐빔']\nfrom sklearn.model_selection import train_test_split\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)";
+// 채점에서 기준 답을 다시 계산할 때 쓰는 줄
+const REF_R = "from sklearn.model_selection import train_test_split as _tts\n_X = _pd.read_csv('congestion.csv').drop(['혼잡도', '붐빔'], axis=1)\n_yr = _pd.read_csv('congestion.csv')['혼잡도']\n_Xtr, _Xte, _ytr, _yte = _tts(_X, _yr, test_size=0.2, random_state=42)";
+const REF_C = "from sklearn.model_selection import train_test_split as _tts\n_X = _pd.read_csv('congestion.csv').drop(['혼잡도', '붐빔'], axis=1)\n_yc = _pd.read_csv('congestion.csv')['붐빔']\n_Xtr, _Xte, _ytr, _yte = _tts(_X, _yc, test_size=0.2, stratify=_yc, random_state=42)";
+const IMP = "import pandas as _pd\nimport numpy as _np\n";
+
+const W3 = [
+{ title:"새 데이터와 상관계수", exam:"시험 1~4번 유형", body:`<p>3주차부터는 <b>congestion.csv</b>(60행)를 써요. 기온 · 열차수 · 출근(1=출근 시간) · 행사(1=근처 행사)로 <b>혼잡도</b>를 맞히는 데이터예요. 붐빔은 혼잡도가 높으면 1이에요.</p><p><code>df.corr()</code>는 열끼리 얼마나 같이 움직이는지(-1~1)를 보여 줘요. 1에 가까우면 같이 오르고, -1에 가까우면 하나가 오를 때 다른 게 내려가요. 시험에선 히트맵 그림으로 보고 고르지만, 숫자로 봐도 답은 같아요.</p>`,
+  example:`# corr = correlation(상관관계). 전체 상관표에서 혼잡도 열만 꺼내요\ndf.corr()['혼잡도']\n# 1에 가까움 = 같이 오름, -1에 가까움 = 반대로 움직임, 0 근처 = 별 관계 없음\n# 가장 작은 값의 이름은 .idxmin(), 가장 큰 값의 이름은 .idxmax()  (idx = index, 이름표)`,
+  task:{ ask:"혼잡도와 <b>음의 상관관계가 가장 강한</b>(가장 작은 값) 열 이름을 <b>답안3</b>에 문자열로 저장하세요.", list:["먼저 df.corr()['혼잡도']를 실행해 눈으로 보고, 답은 따옴표로 써요."],
+    start:"print(df.corr()['혼잡도'])\n답안3 = ''", setup:P3, hint:"열차가 많으면 덜 붐비겠죠?", answer:"print(df.corr()['혼잡도'])\n답안3 = '열차수'", needSk:true,
+    check:`ok = '답안3' in dir() and 답안3 == df.corr()['혼잡도'].idxmin()\nmsg = '열차수가 많을수록 덜 붐벼요(음의 상관).' if ok else '가장 작은(가장 큰 음수) 값의 열 이름을 따옴표로 쓰세요.'` }},
+{ title:"묶어서 평균 groupby", body:`<p><code>df.groupby('열')['값열'].mean()</code>은 열의 값끼리 묶어서 평균을 내요. 엑셀 피벗과 같아요. <code>.mean()</code> 자리에 <code>.sum()</code>, <code>.count()</code>도 돼요.</p>`,
+  example:`df.groupby('행사')['혼잡도'].mean()\n# groupby('행사') = 행사 값(0, 1)끼리 묶기 → ['혼잡도'] = 그중 혼잡도 열 → .mean() = 묶음별 평균\n# 결과 뒤에 [1]을 붙이면 행사 = 1 묶음의 값 하나만 꺼내요`,
+  task:{ ask:"출근 시간(<b>출근 = 1</b>)일 때 혼잡도 평균을 구해 <b>반올림한 정수</b>로 <b>답안4</b>에 저장하세요.", list:["groupby 결과에서 [1]로 꺼내요.","반올림은 round(값)."],
+    start:"", setup:P3, hint:"round(df.groupby('출근')['혼잡도'].mean()[1])", answer:"print(df.groupby('출근')['혼잡도'].mean())\n답안4 = round(df.groupby('출근')['혼잡도'].mean()[1])", needSk:true,
+    check:`ok = '답안4' in dir() and 답안4 == round(df[df['출근'] == 1]['혼잡도'].mean())\nmsg = '출근 시간 평균, 맞아요.' if ok else '출근 = 1 묶음의 평균을 round로 반올림했는지 보세요.'` }},
+{ title:"문제와 정답 나누기 X, y", exam:"시험 8번 유형", body:`<p>모델에게 줄 것은 둘이에요. <b>X</b>(보고 맞힐 재료 열들)와 <b>y</b>(맞혀야 할 정답 열). 보통 <code>X = df.drop('정답열', axis=1)</code>, <code>y = df['정답열']</code>로 만들어요.</p><p>여기선 혼잡도를 맞히는데, 붐빔은 혼잡도에서 나온 열이라 X에 있으면 커닝이 돼요. 그래서 둘 다 빼요.</p>`,
+  example:`# columns = 열 이름 목록\nprint(df.columns)\n# X = 맞힐 때 볼 재료 열들(여러 열이라 대문자) / y = 맞혀야 할 정답 열(한 열이라 소문자)\n# 수학의 y = f(X)에서 따온 이름이라 다들 이렇게 써요`,
+  task:{ ask:"혼잡도를 맞히려고 해요. <b>X</b>에는 혼잡도 · 붐빔을 뺀 나머지 열, <b>y</b>에는 혼잡도 열을 담으세요.", list:["열 여러 개 지우기: df.drop(['A', 'B'], axis=1)"],
+    start:"", setup:P3, hint:"X = df.drop(['혼잡도', '붐빔'], axis=1)", answer:"X = df.drop(['혼잡도', '붐빔'], axis=1)\ny = df['혼잡도']\nprint(X.shape, y.shape)", needSk:true,
+    check:`ok = 'X' in dir() and 'y' in dir() and list(X.columns) == ['기온','열차수','출근','행사'] and getattr(y,'name',None) == '혼잡도'\nmsg = 'X는 4열, y는 혼잡도예요.' if ok else 'X에 혼잡도 · 붐빔이 남았거나 y가 혼잡도 열이 아니에요.'` }},
+{ title:"공부용 · 시험용 나누기", exam:"시험 8번 유형", body:`<p>모델이 처음 보는 문제로 실력을 재려고 표를 둘로 나눠요. <code>train_test_split(X, y, test_size=0.2, random_state=42)</code> → 순서대로 <b>X_train, X_test, y_train, y_test</b> 네 개가 나와요.</p><p>불러오기 세 번째 방법도 여기서 나와요. <code>from 상자 import 도구</code>는 상자 전체 대신 <b>도구 하나만</b> 꺼내 와서, 앞에 상자 이름 없이 <code>train_test_split(...)</code>처럼 바로 써요.</p><p>test_size=0.2는 20%를 시험용으로, random_state는 매번 똑같이 섞이게 하는 번호예요. 시험 문제에 적힌 숫자를 그대로 넣어요.</p>`,
+  example:`from sklearn.model_selection import train_test_split\n# from 상자 import 도구 = 상자에서 도구 하나만 꺼내 와요. 그러면 앞에 상자 이름 없이 바로 써요\n# sklearn = scikit-learn(머신러닝 도구 상자), model_selection = 그 안의 '모델 고르기' 칸\n\n# 60행 → 20%면 시험용 12행, 공부용 48행\nprint(len(X))\n# train = 훈련(공부용), test = 시험용`,
+  task:{ ask:"X, y를 <b>시험용 20%</b>, <b>random_state=42</b>로 나눠 X_train, X_test, y_train, y_test에 담으세요.", list:["X, y는 이미 만들어 있어요.","네 이름의 순서가 중요해요."],
+    start:"from sklearn.model_selection import train_test_split\n", setup:P3X+"\ny = df['혼잡도']", hint:"X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)", answer:"from sklearn.model_selection import train_test_split\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)\nprint(X_train.shape, X_test.shape)", needSk:true,
+    check:IMP+REF_R+`\nok = 'X_test' in dir() and 'y_train' in dir() and X_train.shape == (48, 4) and list(X_test.index) == list(_Xte.index) and list(y_train.index) == list(_ytr.index)\nmsg = '48행은 공부용, 12행은 시험용.' if ok else '20%, random_state=42, 이름 순서(X_train, X_test, y_train, y_test)를 보세요.'` }},
+{ title:"비율 맞춰 나누기 stratify", body:`<p>정답이 0/1처럼 나뉘는 <b>분류</b> 문제에선 <code>stratify=y</code>를 넣어서 공부용 · 시험용에 0과 1이 같은 비율로 들어가게 해요. 시험 빈칸 단골이에요.</p>`,
+  example:`# 0과 1이 거의 반반\nprint(df['붐빔'].value_counts())\n# stratify = 층을 나누다. stratify=y → y의 0/1 비율대로 공부용 · 시험용에 나눠 담아요\n# 회귀(숫자 맞히기)에선 보통 안 쓰고, 분류(종류 맞히기)에서 써요`,
+  task:{ ask:"<b>빈칸 채우기</b>: 붐빔(0/1)을 맞히려고 나눠요. 빈칸을 채워 실행하고, 빈칸 내용을 답안8_1, 답안8_2에 문자열로 쓰세요.", list:["X는 만들어 있어요. y는 붐빔이에요."],
+    start:"# 아래 코드의 빈칸을 채우고 실행하세요.\nfrom sklearn.model_selection import train_test_split\ny = df['붐빔']\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, <blank8-1>=y, <blank8-2>=42)\n답안8_1 = ''\n답안8_2 = ''", setup:P3X, hint:"stratify, random_state", answer:"from sklearn.model_selection import train_test_split\ny = df['붐빔']\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)\n답안8_1 = 'stratify'\n답안8_2 = 'random_state'", needSk:true,
+    check:IMP+REF_C+`\nok = 'X_test' in dir() and list(X_test.index) == list(_Xte.index) and 답안8_1 == 'stratify' and 답안8_2 == 'random_state'\nmsg = '시험용 12행에도 0과 1이 반씩 들어갔어요.' if ok else '빈칸을 다 고쳤는지, 답안 문자열도 썼는지 보세요.'` }},
+{ title:"크기 맞추기 StandardScaler", exam:"시험 9번 유형", body:`<p>기온(-5~32)과 행사(0/1)처럼 열마다 숫자 크기가 다르면 모델이 큰 숫자에 끌려가요. <b>StandardScaler</b>는 열마다 평균 0, 표준편차 1로 바꿔요.</p><p>규칙 하나: 공부용엔 <code>fit_transform</code>(배우고 바꾸기), 시험용엔 <code>transform</code>(바꾸기만). 시험용으로 배우면 커닝이에요.</p>`,
+  example:`# preprocessing = 전처리(데이터 다듬기) 칸\nfrom sklearn.preprocessing import StandardScaler\n\n# 도구 이름 뒤 ( ) = 도구 하나를 새로 만들어 scaler에 담아요\nscaler = StandardScaler()\n\n# fit = 공부용의 평균 · 표준편차를 배우고, transform = 그 기준으로 바꾸기\nX_train_s = scaler.fit_transform(X_train)\n\n# 시험용은 배운 기준으로 바꾸기만\nX_test_s = scaler.transform(X_test)\n\n# [:2] = 앞에서 2줄, round(2) = 소수 둘째 자리까지\nprint(X_train_s[:2].round(2))\n# 이름 끝 _s는 scaled(크기 맞춤) 표시일 뿐이에요. 이름은 문제가 정해 줘요`,
+  task:{ ask:"StandardScaler로 X_train을 바꿔 <b>X_train_s</b>, X_test를 바꿔 <b>X_test_s</b>에 담으세요.", list:["X_train, X_test는 나눠 놓았어요."],
+    start:"from sklearn.preprocessing import StandardScaler\n", setup:P3R, hint:"scaler = StandardScaler() → X_train_s = scaler.fit_transform(X_train) → X_test_s = scaler.transform(X_test)", answer:"from sklearn.preprocessing import StandardScaler\nscaler = StandardScaler()\nX_train_s = scaler.fit_transform(X_train)\nX_test_s = scaler.transform(X_test)", needSk:true,
+    check:IMP+REF_R+`\nfrom sklearn.preprocessing import StandardScaler as _SS\n_s = _SS().fit(_Xtr)\nok = 'X_train_s' in dir() and 'X_test_s' in dir() and _np.allclose(X_train_s, _s.transform(_Xtr)) and _np.allclose(X_test_s, _s.transform(_Xte))\nmsg = '공부용으로 배우고 둘 다 바꿨어요.' if ok else '시험용은 transform만 썼는지, 이름이 맞는지 보세요.'` }},
+{ title:"커닝 고치기", body:`<p>에러는 안 나는데 <b>틀린 코드</b>도 시험에 나와요. 가장 흔한 게 시험용 데이터로 다시 배우는(fit) 실수예요.</p>`,
+  example:`# 맞는 짝\n# 공부용: scaler.fit_transform(X_train)  → 배우고 바꾸기\n# 시험용: scaler.transform(X_test)       → 바꾸기만\n# 시험용으로 fit 하면 '시험 문제를 미리 보고 공부한 것'이 돼요`,
+  task:{ ask:"<b>오류 고치기</b>: 아래 코드는 에러 없이 돌지만 틀렸어요. 고쳐서 실행하세요.", list:["어느 줄이 시험용을 '배우고' 있나요?"],
+    start:"# 아래의 코드를 정정하고 실행하세요.\nfrom sklearn.preprocessing import StandardScaler\nscaler = StandardScaler()\nX_train_s = scaler.fit_transform(X_train)\nX_test_s = scaler.fit_transform(X_test)", setup:P3R, hint:"마지막 줄의 fit_transform → transform", answer:"from sklearn.preprocessing import StandardScaler\nscaler = StandardScaler()\nX_train_s = scaler.fit_transform(X_train)\nX_test_s = scaler.transform(X_test)", needSk:true,
+    check:IMP+REF_R+`\nfrom sklearn.preprocessing import StandardScaler as _SS\n_s = _SS().fit(_Xtr)\nok = 'X_test_s' in dir() and _np.allclose(X_test_s, _s.transform(_Xte))\nmsg = '시험용은 바꾸기만 했어요.' if ok else 'X_test_s가 아직 시험용으로 다시 배운 결과예요.'` }},
+{ title:"0~1로 맞추기 MinMaxScaler", body:`<p><b>MinMaxScaler</b>는 열마다 가장 작은 값을 0, 가장 큰 값을 1로 맞춰요. 쓰는 법은 StandardScaler와 똑같고 이름만 달라요. 시험 문제에 적힌 것을 쓰면 돼요.</p>`,
+  example:`# Min(가장 작은) Max(가장 큰)\nfrom sklearn.preprocessing import MinMaxScaler\n\n# 이름은 아무거나 괜찮아요 (mm, scaler …)\nmm = MinMaxScaler()\n\n# 열마다 가장 작은 값 → 0, 가장 큰 값 → 1\nprint(mm.fit_transform(X_train)[:2].round(2))`,
+  task:{ ask:"MinMaxScaler로 X_train → <b>X_train_m</b>, X_test → <b>X_test_m</b>을 만드세요.", list:[],
+    start:"", setup:P3R, hint:"from sklearn.preprocessing import MinMaxScaler", answer:"from sklearn.preprocessing import MinMaxScaler\nmm = MinMaxScaler()\nX_train_m = mm.fit_transform(X_train)\nX_test_m = mm.transform(X_test)\nprint(X_train_m.min(), X_train_m.max())", needSk:true,
+    check:IMP+REF_R+`\nfrom sklearn.preprocessing import MinMaxScaler as _MM\n_m = _MM().fit(_Xtr)\nok = 'X_train_m' in dir() and 'X_test_m' in dir() and _np.allclose(X_train_m, _m.transform(_Xtr)) and _np.allclose(X_test_m, _m.transform(_Xte))\nmsg = '공부용은 0~1 안에 들어왔어요.' if ok else 'fit_transform / transform 짝과 이름을 보세요.'` }},
+{ title:"3주차 마무리: 한 번에", body:`<p>시험 8~9번 흐름: <b>X, y 만들기 → 나누기 → 크기 맞추기</b>. 다음 주엔 이걸로 모델을 공부시켜요.</p>`,
+  example:`# 순서: X, y 만들기 → train_test_split으로 나누기 → scaler로 크기 맞추기\n# 불러오기(import)는 맨 위에 모아 써도 되고, 쓰기 직전에 써도 돼요`,
+  task:{ ask:"붐빔을 맞히려 해요. ① X = 혼잡도 · 붐빔을 뺀 열, y = 붐빔 ② 시험용 20%, stratify, random_state=42로 나누기 ③ StandardScaler로 <b>X_train_s</b>, <b>X_test_s</b>", list:["빈 칸에서 시작해요. 불러오기(import)도 직접!"],
+    start:"", setup:P3, hint:"3 · 4 · 5 · 6번 역을 이어 붙이면 돼요.", answer:"from sklearn.model_selection import train_test_split\nfrom sklearn.preprocessing import StandardScaler\nX = df.drop(['혼잡도', '붐빔'], axis=1)\ny = df['붐빔']\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)\nscaler = StandardScaler()\nX_train_s = scaler.fit_transform(X_train)\nX_test_s = scaler.transform(X_test)", needSk:true,
+    check:IMP+REF_C+`\nfrom sklearn.preprocessing import StandardScaler as _SS\n_s = _SS().fit(_Xtr)\nok = 'X_test_s' in dir() and 'y_test' in dir() and _np.allclose(X_test_s, _s.transform(_Xte)) and list(y_test.index) == list(_yte.index)\nmsg = '세 단계 다 맞아요. 3주차 끝!' if ok else '한 단계씩 확인해요: y는 붐빔, stratify=y, 시험용은 transform.'` }},
+];
+
+const P4R = P3R + "\nfrom sklearn.metrics import mean_absolute_error, mean_squared_error";
+const P4LR = P4R + "\nfrom sklearn.linear_model import LinearRegression\nlr = LinearRegression()\nlr.fit(X_train, y_train)\npred = lr.predict(X_test)";
+const P4RF = P4R + "\nfrom sklearn.ensemble import RandomForestRegressor\nrf = RandomForestRegressor(n_estimators=30, random_state=42)\nrf.fit(X_train, y_train)";
+const P4C = P3C + "\nfrom sklearn.metrics import accuracy_score";
+const REF_LR = "\nfrom sklearn.linear_model import LinearRegression as _LR\n_pred = _LR().fit(_Xtr, _ytr).predict(_Xte)";
+
+const W4 = [
+{ title:"첫 모델: 선형회귀", exam:"시험 10번 유형", body:`<p>모델 쓰는 법은 어느 모델이든 세 줄이에요. <b>만들기</b> <code>model = 모델이름()</code> → <b>공부시키기</b> <code>model.fit(X_train, y_train)</code> → <b>맞히기</b> <code>model.predict(X_test)</code>.</p><p>혼잡도처럼 숫자를 맞히는 건 <b>회귀</b>예요. 가장 기본이 LinearRegression(선형회귀)이에요.</p>`,
+  example:`# linear(직선) model 칸에서 LinearRegression(선형회귀)\nfrom sklearn.linear_model import LinearRegression\n\n# 모델 하나 새로 만들기\nmodel = LinearRegression()\n\n# fit = 공부시키기: 재료(X_train)와 정답(y_train)을 같이 줘요\nmodel.fit(X_train, y_train)\n\n# predict = 예측: 시험용 재료만 주고 맞히게 해요\npred = model.predict(X_test)\n\n# pred = prediction(예측)의 줄임말\nprint(pred.round(0))`,
+  task:{ ask:"LinearRegression을 <b>lr</b>로 만들어 공부시키고, X_test를 맞힌 결과를 <b>pred</b>에 담으세요.", list:["나누기는 해 놨어요."],
+    start:"from sklearn.linear_model import LinearRegression\n", setup:P4R, hint:"lr = LinearRegression() → lr.fit(X_train, y_train) → pred = lr.predict(X_test)", answer:"from sklearn.linear_model import LinearRegression\nlr = LinearRegression()\nlr.fit(X_train, y_train)\npred = lr.predict(X_test)\nprint(pred.round(0))", needSk:true,
+    check:IMP+REF_R+REF_LR+`\nok = 'pred' in dir() and len(pred) == 12 and _np.allclose(pred, _pred)\nmsg = '시험용 12개 역의 혼잡도를 맞혔어요.' if ok else 'fit에는 X_train, y_train, predict에는 X_test를 넣었는지 보세요.'` }},
+{ title:"얼마나 틀렸나: MAE", exam:"시험 13번 유형", body:`<p>회귀는 <b>평균 오차</b>로 채점해요. <code>mean_absolute_error(y_test, pred)</code> = 정답과 예측의 차이를 평균 낸 값(MAE). 작을수록 좋아요. 순서는 <b>정답 먼저, 예측 나중</b>.</p>`,
+  example:`# 진짜 정답 앞 3개 (.values = 표 테두리 없이 값만)\nprint(y_test.values[:3])\n\n# 예측 앞 3개\nprint(pred[:3].round(0))\n# 차이를 모두 양수로 바꿔(절댓값) 평균 낸 게 MAE\n# MAE = Mean(평균) Absolute(절댓값) Error(오차)`,
+  task:{ ask:"lr의 예측(pred)이 평균 몇 만큼 틀렸는지 MAE를 구해 <b>답안13</b>에 저장하세요.", list:["mean_absolute_error는 불러와 있어요."],
+    start:"", setup:P4LR, hint:"답안13 = mean_absolute_error(y_test, pred)", answer:"답안13 = mean_absolute_error(y_test, pred)\nprint(답안13)", needSk:true,
+    check:IMP+REF_R+REF_LR+`\nfrom sklearn.metrics import mean_absolute_error as _mae\nok = '답안13' in dir() and abs(float(답안13) - _mae(_yte, _pred)) < 1e-6\nmsg = '평균 오차를 구했어요.' if ok else 'mean_absolute_error(y_test, pred)를 답안13에 담았는지 보세요.'` }},
+{ title:"RMSE 빈칸", body:`<p>또 하나의 채점 방법 <b>RMSE</b>: 오차를 제곱해 평균 낸 값(MSE)에 루트를 씌워요. <code>np.sqrt(mean_squared_error(y_test, pred))</code>. 큰 실수에 더 벌점을 줘요.</p>`,
+  example:`# numpy = 숫자 계산 도구 상자. 별명은 다들 np\nimport numpy as np\n\n# sqrt = square root(제곱근) → 4.0\nprint(np.sqrt(16))\n# RMSE = Root(루트) Mean(평균) Squared(제곱) Error(오차): 오차를 제곱 → 평균 → 루트`,
+  task:{ ask:"<b>빈칸 채우기</b>: RMSE를 구해 <b>답안</b>에 담아요. 빈칸 내용은 답안13_1, 답안13_2에 문자열로.", list:[],
+    start:"# 아래 코드의 빈칸을 채우고 실행하세요.\nimport numpy as np\n답안 = np.<blank13-1>(<blank13-2>(y_test, pred))\n답안13_1 = ''\n답안13_2 = ''", setup:P4LR, hint:"sqrt, mean_squared_error", answer:"import numpy as np\n답안 = np.sqrt(mean_squared_error(y_test, pred))\n답안13_1 = 'sqrt'\n답안13_2 = 'mean_squared_error'", needSk:true,
+    check:IMP+REF_R+REF_LR+`\nfrom sklearn.metrics import mean_squared_error as _mse\nok = '답안' in dir() and abs(float(답안) - _np.sqrt(_mse(_yte, _pred))) < 1e-6 and 답안13_1 == 'sqrt' and 답안13_2 == 'mean_squared_error'\nmsg = 'RMSE, 맞아요.' if ok else '빈칸 두 개와 답안 문자열을 다 썼는지 보세요.'` }},
+{ title:"랜덤포레스트 회귀", exam:"시험 10번 유형", body:`<p><b>RandomForest</b>는 작은 나무(결정트리) 여러 그루가 투표하는 모델이에요. 시험에 가장 자주 나와요. 괄호 안에 <code>n_estimators=나무 수</code>, <code>random_state=번호</code>를 문제대로 넣어요. 쓰는 세 줄은 똑같아요.</p>`,
+  example:`# ensemble = 여러 모델을 합친 것\nfrom sklearn.ensemble import RandomForestRegressor\n# Random(무작위) Forest(숲): 나무를 무작위로 여러 그루 키워서 평균을 내요\n# Regressor = 회귀(숫자 맞히기)용. 분류용은 Classifier\n\n# n_estimators = 나무 수\nrf = RandomForestRegressor(n_estimators=30, random_state=42)\nprint(rf)`,
+  task:{ ask:"<b>RandomForestRegressor(n_estimators=30, random_state=42)</b>를 <b>rf</b>로 만들어 공부시키고, X_test 예측의 MAE를 <b>답안</b>에 저장하세요.", list:["mean_absolute_error는 불러와 있어요.","폰에선 공부에 몇 초 걸려요."],
+    start:"from sklearn.ensemble import RandomForestRegressor\n", setup:P4R, hint:"rf.fit(X_train, y_train) → pred_rf = rf.predict(X_test) → 답안 = mean_absolute_error(y_test, pred_rf)", answer:"from sklearn.ensemble import RandomForestRegressor\nrf = RandomForestRegressor(n_estimators=30, random_state=42)\nrf.fit(X_train, y_train)\npred_rf = rf.predict(X_test)\n답안 = mean_absolute_error(y_test, pred_rf)\nprint(답안)", needSk:true,
+    check:IMP+REF_R+`\nfrom sklearn.ensemble import RandomForestRegressor as _RFR\nfrom sklearn.metrics import mean_absolute_error as _mae\n_p = _RFR(n_estimators=30, random_state=42).fit(_Xtr, _ytr).predict(_Xte)\nok = 'rf' in dir() and '답안' in dir() and abs(float(답안) - _mae(_yte, _p)) < 1e-6\nmsg = '나무 30그루의 평균 오차예요. 선형회귀와 비교해 보세요.' if ok else 'n_estimators=30, random_state=42와 MAE 순서(y_test, 예측)를 보세요.'` }},
+{ title:"가장 중요한 열", exam:"시험 11번 유형", body:`<p>공부를 마친 나무 모델은 <code>model.feature_importances_</code>에 열마다 얼마나 중요했는지 숫자를 갖고 있어요. 열 이름과 짝지어 가장 큰 걸 고르면 돼요: <code>pd.Series(값, index=X_train.columns)</code>.</p>`,
+  example:`# feature(재료 열) importances(중요도). 끝의 _ = 공부한 뒤에 생긴 값 표시\nprint(rf.feature_importances_.round(3))\n\n# 같은 순서의 열 이름\nprint(list(X_train.columns))\n# 둘을 짝지으려면 pd.Series(값들, index=이름들) → 이름표 붙은 한 줄짜리 표가 돼요`,
+  task:{ ask:"rf가 가장 중요하게 본 열 이름을 <b>답안11</b>에 문자열로 저장하세요.", list:["rf는 공부시켜 놨어요.","Series를 만든 뒤 .idxmax()가 가장 큰 값의 이름을 줘요."],
+    start:"", setup:P4RF, hint:"pd.Series(rf.feature_importances_, index=X_train.columns).idxmax()", answer:"imp = pd.Series(rf.feature_importances_, index=X_train.columns)\nprint(imp.sort_values(ascending=False))\n답안11 = imp.idxmax()", needSk:true,
+    check:IMP+REF_R+`\nfrom sklearn.ensemble import RandomForestRegressor as _RFR\n_r = _RFR(n_estimators=30, random_state=42).fit(_Xtr, _ytr)\nok = '답안11' in dir() and 답안11 == _X.columns[_np.argmax(_r.feature_importances_)]\nmsg = '가장 중요한 열을 찾았어요.' if ok else '중요도 숫자가 가장 큰 열 이름을 따옴표째 담았는지 보세요.'` }},
+{ title:"분류 모델과 정확도", exam:"시험 10 · 13번 유형", body:`<p>0/1처럼 종류를 맞히는 건 <b>분류</b>예요. 이름 끝이 Regressor → <b>Classifier</b>로 바뀌고, 채점은 <code>accuracy_score(y_test, 예측)</code> = 맞힌 비율이에요.</p><p>DecisionTreeClassifier(결정트리)는 스무고개처럼 질문을 이어 가는 모델이에요. <code>max_depth</code>는 질문 몇 번까지 할지예요.</p>`,
+  example:`# Decision(결정) Tree(나무) Classifier(분류기)\nfrom sklearn.tree import DecisionTreeClassifier\n\n# 공부용 정답에 0과 1이 몇 개씩 있는지\nprint(y_train.value_counts())\n# accuracy_score(정답, 예측) = 맞힌 비율. 1.0이면 다 맞힘, 0.5면 절반`,
+  task:{ ask:"붐빔(0/1)을 맞혀요. <b>DecisionTreeClassifier(max_depth=3, random_state=42)</b>를 <b>dt</b>로 공부시키고 X_test 정확도를 <b>답안</b>에 저장하세요.", list:["stratify로 나눠 놨고 accuracy_score도 불러와 있어요."],
+    start:"from sklearn.tree import DecisionTreeClassifier\n", setup:P4C, hint:"답안 = accuracy_score(y_test, dt.predict(X_test))", answer:"from sklearn.tree import DecisionTreeClassifier\ndt = DecisionTreeClassifier(max_depth=3, random_state=42)\ndt.fit(X_train, y_train)\n답안 = accuracy_score(y_test, dt.predict(X_test))\nprint(답안)", needSk:true,
+    check:IMP+REF_C+`\nfrom sklearn.tree import DecisionTreeClassifier as _DT\nfrom sklearn.metrics import accuracy_score as _acc\n_a = _acc(_yte, _DT(max_depth=3, random_state=42).fit(_Xtr, _ytr).predict(_Xte))\nok = 'dt' in dir() and '답안' in dir() and dt.get_params().get('max_depth') == 3 and abs(float(답안) - _a) < 1e-9\nmsg = '12개 중 맞힌 비율이에요.' if ok else 'max_depth=3, random_state=42와 accuracy_score(y_test, 예측)를 보세요.'` }},
+{ title:"fit 짝 고치기", body:`<p>fit에는 <b>같은 쪽끼리</b> 짝을 지어요: <code>fit(X_train, y_train)</code>. 짝이 틀리면 "inconsistent numbers of samples"(개수가 안 맞음) 에러가 나요.</p>`,
+  example:`# 48 48 12\nprint(len(X_train), len(y_train), len(X_test))\n# fit(X_train, y_train)처럼 개수가 같은 짝을 넣어야 해요\n# 재료 12개에 정답 48개를 주면 '개수가 안 맞는다'는 에러가 나요`,
+  task:{ ask:"<b>오류 고치기</b>: 에러가 나는 코드를 고쳐서 실행하세요. 결과 정확도는 <b>답안</b>에.", list:["에러 마지막 줄을 읽어 보세요."],
+    start:"# 아래의 코드를 정정하고 실행하세요.\nfrom sklearn.tree import DecisionTreeClassifier\ndt = DecisionTreeClassifier(max_depth=3, random_state=42)\ndt.fit(X_test, y_train)\n답안 = accuracy_score(y_test, dt.predict(X_test))", setup:P4C, hint:"dt.fit(X_train, y_train)", answer:"from sklearn.tree import DecisionTreeClassifier\ndt = DecisionTreeClassifier(max_depth=3, random_state=42)\ndt.fit(X_train, y_train)\n답안 = accuracy_score(y_test, dt.predict(X_test))", needSk:true,
+    check:IMP+REF_C+`\nfrom sklearn.tree import DecisionTreeClassifier as _DT\nfrom sklearn.metrics import accuracy_score as _acc\n_a = _acc(_yte, _DT(max_depth=3, random_state=42).fit(_Xtr, _ytr).predict(_Xte))\nok = '답안' in dir() and abs(float(답안) - _a) < 1e-9\nmsg = '짝을 맞췄어요.' if ok else 'fit 안을 X_train, y_train으로 고쳤는지 보세요.'` }},
+{ title:"랜덤포레스트 분류", body:`<p>RandomForest<b>Classifier</b>도 쓰는 법은 같아요. 시험에선 보통 결정트리와 랜덤포레스트를 둘 다 만들어 점수를 비교해요.</p>`,
+  example:`# 숲 + 분류기\nfrom sklearn.ensemble import RandomForestClassifier\n# 쓰는 법은 회귀용과 같아요: 만들기 → fit → predict → accuracy_score`,
+  task:{ ask:"<b>RandomForestClassifier(n_estimators=30, random_state=42)</b>를 <b>rfc</b>로 공부시키고 정확도를 <b>답안</b>에 저장하세요.", list:[],
+    start:"", setup:P4C, hint:"from sklearn.ensemble import RandomForestClassifier", answer:"from sklearn.ensemble import RandomForestClassifier\nrfc = RandomForestClassifier(n_estimators=30, random_state=42)\nrfc.fit(X_train, y_train)\n답안 = accuracy_score(y_test, rfc.predict(X_test))\nprint(답안)", needSk:true,
+    check:IMP+REF_C+`\nfrom sklearn.ensemble import RandomForestClassifier as _RFC\nfrom sklearn.metrics import accuracy_score as _acc\n_a = _acc(_yte, _RFC(n_estimators=30, random_state=42).fit(_Xtr, _ytr).predict(_Xte))\nok = 'rfc' in dir() and '답안' in dir() and rfc.get_params().get('n_estimators') == 30 and abs(float(답안) - _a) < 1e-9\nmsg = '랜덤포레스트 정확도예요.' if ok else '이름(rfc), 괄호 안 숫자, accuracy_score 순서를 보세요.'` }},
+{ title:"좋은 설정 찾기 GridSearchCV", exam:"시험 12번 유형", body:`<p><b>GridSearchCV</b>는 설정 후보를 다 돌려 보고 가장 좋은 걸 골라 줘요. <code>GridSearchCV(모델, param_grid={'설정': [후보들]}, cv=3)</code>. 중괄호 <code>{ }</code>는 <b>사전(딕셔너리)</b>이에요: <code>'이름': 값</code> 짝을 모아 둔 것. → fit → <code>.best_params_</code>에 정답이 들어 있어요.</p><p>cv=3은 공부용을 3조각으로 나눠 돌아가며 시험 본다는 뜻이에요.</p>`,
+  example:`# { } = 사전(딕셔너리): '이름': 값 짝을 모아 둔 것\n후보 = {'max_depth': [2, 3, 4, 5]}\n\n# 사전[이름] = 그 이름의 값 꺼내기 → [2, 3, 4, 5]\nprint(후보['max_depth'])\n# GridSearchCV = Grid(격자) Search(찾기) CV(교차 검증). 다 돌린 뒤 .best_params_에 가장 좋은 설정이 사전으로 들어 있어요`,
+  task:{ ask:"DecisionTreeClassifier(random_state=42)로 <b>max_depth 후보 [2, 3, 4, 5]</b>, <b>cv=3</b> 그리드서치를 <b>grid</b>로 돌리고, 가장 좋은 max_depth를 <b>답안12</b>에 저장하세요.", list:["param_grid는 사전 {'max_depth': [2, 3, 4, 5]}"],
+    start:"from sklearn.model_selection import GridSearchCV\nfrom sklearn.tree import DecisionTreeClassifier\n", setup:P4C, hint:"grid.fit(X_train, y_train) 다음 답안12 = grid.best_params_['max_depth']", answer:"from sklearn.model_selection import GridSearchCV\nfrom sklearn.tree import DecisionTreeClassifier\ngrid = GridSearchCV(DecisionTreeClassifier(random_state=42), param_grid={'max_depth': [2, 3, 4, 5]}, cv=3)\ngrid.fit(X_train, y_train)\nprint(grid.best_params_)\n답안12 = grid.best_params_['max_depth']", needSk:true,
+    check:IMP+REF_C+`\nfrom sklearn.model_selection import GridSearchCV as _GS\nfrom sklearn.tree import DecisionTreeClassifier as _DT\n_g = _GS(_DT(random_state=42), param_grid={'max_depth': [2, 3, 4, 5]}, cv=3).fit(_Xtr, _ytr)\nok = 'grid' in dir() and '답안12' in dir() and 답안12 == _g.best_params_['max_depth']\nmsg = '가장 좋은 깊이를 찾았어요.' if ok else "후보 [2, 3, 4, 5], cv=3, 답안12 = grid.best_params_['max_depth']를 보세요."` }},
+{ title:"4주차 마무리 (딥러닝은 PC로)", body:`<p>시험 10~13번 흐름: <b>모델 만들기 → fit → predict → 점수</b>. 마지막 14번 쯤의 <b>딥러닝(keras)</b>은 폰에서 못 돌려요. PC의 <b>수업\\4주차</b> 노트북과 모의고사에서 연습하세요. 딥러닝도 쓰는 순서(만들기 → compile → fit → predict)는 같아요.</p>`,
+  example:`# 모델 쓰는 순서는 어느 모델이든 같아요\n# model = 모델이름(설정)  → 만들기\n# model.fit(X_train, y_train)  → 공부\n# pred = model.predict(X_test)  → 맞히기\n# 점수(y_test, pred)  → 회귀는 MAE · RMSE, 분류는 accuracy_score`,
+  task:{ ask:"혼잡도를 맞혀요. ① 나누기(시험용 20%, random_state=42) ② <b>RandomForestRegressor(n_estimators=30, random_state=42)</b> 공부 ③ MAE를 <b>답안</b>에", list:["빈 칸에서 시작해요. X, y도 직접 만들어요(혼잡도 · 붐빔 빼기)."],
+    start:"", setup:P3, hint:"3주차 3 · 4번 역 + 4주차 4번 역", answer:"from sklearn.model_selection import train_test_split\nfrom sklearn.ensemble import RandomForestRegressor\nfrom sklearn.metrics import mean_absolute_error\nX = df.drop(['혼잡도', '붐빔'], axis=1)\ny = df['혼잡도']\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)\nrf = RandomForestRegressor(n_estimators=30, random_state=42)\nrf.fit(X_train, y_train)\n답안 = mean_absolute_error(y_test, rf.predict(X_test))\nprint(답안)", needSk:true,
+    check:IMP+REF_R+`\nfrom sklearn.ensemble import RandomForestRegressor as _RFR\nfrom sklearn.metrics import mean_absolute_error as _mae\n_p = _RFR(n_estimators=30, random_state=42).fit(_Xtr, _ytr).predict(_Xte)\nok = '답안' in dir() and abs(float(답안) - _mae(_yte, _p)) < 1e-6\nmsg = '처음부터 끝까지 혼자 했어요. 4주차 끝!' if ok else '나누기 숫자, 모델 괄호 안 숫자, MAE 순서를 하나씩 보세요.'` }},
+];
+W3.forEach(L=>{ L.week = 3; LESSONS.push(L); });
+W4.forEach(L=>{ L.week = 4; LESSONS.push(L); });
+FLASH.push(
+  ["상관계수 보기","df.corr()['열']"],["묶어서 평균","df.groupby('열')['값'].mean()"],["X, y 만들기","X = df.drop('정답', axis=1)\ny = df['정답']"],
+  ["나누기","X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)"],["분류에서 비율 맞추기","stratify=y"],
+  ["크기 맞추기(공부용 / 시험용)","scaler.fit_transform(X_train)\nscaler.transform(X_test)"],["모델 세 줄","model = 모델()\nmodel.fit(X_train, y_train)\npred = model.predict(X_test)"],
+  ["회귀 점수","mean_absolute_error(y_test, pred)"],["RMSE","np.sqrt(mean_squared_error(y_test, pred))"],["분류 점수","accuracy_score(y_test, pred)"],
+  ["가장 중요한 열","pd.Series(model.feature_importances_, index=X_train.columns).idxmax()"],["그리드서치 결과","grid.best_params_"]
+);
+
+const KEYS = ["(",")","[","]","'","=",".",",","_",":","+","*","#"];
+const WORDS = ["print(","df","pd.","import pandas as pd","read_csv(","head(","shape","len(","round(","답안","X_train","X_test","y_train","y_test",".fit(",".predict(","random_state=42"];
+
+// ===== 진도 저장(이 폰 브라우저에만) =====
+let done = {};
+try{ done = JSON.parse(localStorage.getItem('aice-w1-done')||'{}') }catch(e){ done = {} }
+function saveDone(){ try{ localStorage.setItem('aice-w1-done', JSON.stringify(done)) }catch(e){} }
+let drafts = {};
+try{ drafts = JSON.parse(localStorage.getItem('aice-w1-drafts')||'{}') }catch(e){ drafts = {} }
+function saveDraft(i,v){ drafts[i]=v; try{ localStorage.setItem('aice-w1-drafts', JSON.stringify(drafts)) }catch(e){} }
+let cur = 0;
+try{ cur = Math.min(LESSONS.length-1, parseInt(localStorage.getItem('aice-w1-cur')||'0',10)||0) }catch(e){}
+
+// ===== 파이썬 준비 =====
+const statusEl = document.getElementById('status');
+let pyReady = null, pandasReady = null;
+function getPy(){
+  if(!pyReady){
+    statusEl.textContent = '파이썬 준비 중… (처음 한 번은 10~30초)';
+    pyReady = loadPyodide({ indexURL: new URL('py/', location.href).href }).then(py=>{
+      statusEl.textContent = '파이썬 준비 완료.';
+      return py;
+    }).catch(e=>{ pyReady=null; statusEl.textContent='파이썬을 못 불러왔어요: '+e.message; throw e; });
+  }
+  return pyReady;
+}
+async function getPandas(){
+  const py = await getPy();
+  if(!pandasReady){
+    statusEl.textContent = 'pandas 준비 중… (처음 한 번만)';
+    pandasReady = py.loadPackage('pandas').then(()=>{
+      py.FS.writeFile('subway.csv', CSV);
+      py.FS.writeFile('congestion.csv', CSV2);
+      statusEl.textContent = '파이썬 · pandas 준비 완료.';
+    }).catch(e=>{ pandasReady=null; statusEl.textContent='pandas를 못 불러왔어요: '+e.message; throw e; });
+  }
+  await pandasReady;
+  return py;
+}
+
+let skReady = null;
+async function getSk(){
+  const py = await getPandas();
+  if(!skReady){
+    statusEl.textContent = '머신러닝 도구(scikit-learn) 준비 중… 처음 한 번은 약 75MB라 1~3분 걸려요.';
+    skReady = py.loadPackage('scikit-learn').then(()=>{ statusEl.textContent = '파이썬 · pandas · scikit-learn 준비 완료.'; })
+      .catch(e=>{ skReady=null; statusEl.textContent='scikit-learn을 못 불러왔어요: '+e.message; throw e; });
+  }
+  await skReady;
+  return py;
+}
+
+const ERR_KO = {
+  SyntaxError:'괄호나 따옴표 짝이 안 맞거나, 기호를 빠뜨렸어요.',
+  IndentationError:'줄 앞 빈칸(들여쓰기)이 이상해요. 줄 맨 앞의 빈칸을 지워 보세요.',
+  NameError:'그런 이름이 없어요. 철자, 따옴표, import를 확인하세요.',
+  KeyError:'그런 열 이름이 없어요. 철자와 대소문자를 보세요.',
+  AttributeError:'점 뒤에 쓴 기능 이름이 없어요. 철자를 보세요.',
+  TypeError:'값의 종류가 맞지 않아요. 글자와 숫자를 섞었거나 괄호 안 재료가 틀렸어요.',
+  FileNotFoundError:'그런 파일이 없어요. 파일 이름 철자를 보세요.',
+  ModuleNotFoundError:'그런 라이브러리가 없어요. 이름 철자를 보세요.',
+  ZeroDivisionError:'0으로 나눴어요.',
+  ValueError:'값이 맞지 않아요. 넣은 재료의 개수나 모양(공부용 · 시험용 짝)을 보세요.',
+};
+function explainError(msg){
+  const lines = msg.trim().split('\n');
+  let last = lines[lines.length-1];
+  // 사용자에게 보여 줄 줄 번호 찾기
+  let lineNo = null;
+  for(const l of lines){ const m = l.match(/File "<exec>", line (\d+)/); if(m) lineNo = m[1]; }
+  const kind = (last.match(/^(\w+Error)/)||[])[1];
+  return { last, lineNo, ko: ERR_KO[kind] || '' };
+}
+
+async function runCode(code, opts){
+  const needPandas = opts.needPandas || /pandas|\bpd\./.test(code);
+  const py = opts.needSk ? await getSk() : needPandas ? await getPandas() : await getPy();
+  let out = [];
+  py.setStdout({ batched: s=>out.push(s) });
+  py.setStderr({ batched: s=>out.push(s) });
+  const ns = py.globals.get('dict')();
+  let value = null, error = null, html = null, repr = null;
+  try{
+    if(opts.setup) await py.runPythonAsync(opts.setup, { globals: ns });
+    value = await py.runPythonAsync(code, { globals: ns });
+    if(value !== undefined && value !== null){
+      if(value && value.type === 'DataFrame'){ html = value.to_html.callKwargs({max_rows:15}); }
+      else if(value && value.type === 'Series'){ const fr = value.to_frame(); html = fr.to_html.callKwargs({max_rows:15}); fr.destroy(); }
+      else if(value && typeof value === 'object' && value.toString){ repr = py.globals.get('repr')(value); }
+      else { repr = String(value); }
+    }
+  }catch(e){ error = e.message || String(e); }
+  let verdict = null;
+  if(opts.check && !error){
+    try{
+      ns.set('_', value === undefined ? null : value);
+      ns.set('_out', out.join('\n'));
+      // numpy의 참/거짓은 JS에서 언제나 '있음'으로 보여서, 파이썬 bool로 바꿔서 꺼낸다
+      await py.runPythonAsync(opts.check + "\nok = bool(ok)\nmsg = str(msg)", { globals: ns });
+      verdict = { ok: !!ns.get('ok'), msg: String(ns.get('msg')) };
+    }catch(e){ verdict = { ok:false, msg:'채점 중 문제가 생겼어요: ' + (e.message||'').trim().split('\n').pop() }; }
+  }
+  if(value && value.destroy) try{ value.destroy() }catch(e){}
+  ns.destroy && ns.destroy();
+  return { out: out.join('\n'), error, html, repr, verdict };
+}
+
+function renderResult(box, r, isTask){
+  box.innerHTML = '';
+  if(r.out){ const p = document.createElement('pre'); p.textContent = r.out; box.append(p); }
+  if(r.html){ const d = document.createElement('div'); d.className='table'; d.innerHTML = r.html; box.append(d); }
+  else if(r.repr && r.repr !== 'None'){ const p = document.createElement('pre'); p.textContent = r.repr; box.append(p); }
+  if(r.error){
+    const ex = explainError(r.error);
+    const p = document.createElement('pre'); p.className='err';
+    p.textContent = (ex.lineNo ? ex.lineNo + '번째 줄에서 에러\n' : '') + ex.last;
+    box.append(p);
+    if(ex.ko){ const v = document.createElement('div'); v.className='verdict bad'; v.textContent = '풀이: ' + ex.ko; box.append(v); }
+  }
+  if(isTask && r.verdict){
+    const v = document.createElement('div'); v.className = 'verdict ' + (r.verdict.ok?'ok':'bad');
+    v.textContent = (r.verdict.ok ? '정답이에요. ' : '아직이에요. ') + r.verdict.msg; box.append(v);
+  }
+  if(!r.out && !r.html && !r.error && !(r.repr && r.repr!=='None') && !(isTask && r.verdict)){
+    const p = document.createElement('p'); p.className='note'; p.textContent='실행했어요. 화면에 보여 줄 것은 없어요.'; box.append(p);
+  }
+}
+
+function insertAt(ta, text){
+  const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? s;
+  ta.value = ta.value.slice(0,s) + text + ta.value.slice(e);
+  const pos = s + text.length; ta.setSelectionRange(pos,pos); ta.dispatchEvent(new Event('input'));
+}
+
+// ===== 그리기 =====
+const learn = document.getElementById('learn');
+const route = document.getElementById('route');
+function drawRoute(){
+  route.innerHTML = '';
+  const wk = LESSONS[cur].week;
+  LESSONS.forEach((L,i)=>{
+    if(L.week !== wk) return;
+    const li = document.createElement('li');
+    if(done[i]) li.classList.add('done');
+    if(i===cur) li.classList.add('here');
+    const b = document.createElement('button'); b.textContent = i+1;
+    b.setAttribute('aria-label', (i+1)+'번 역 '+L.title+(done[i]?' (통과)':''));
+    b.onclick = ()=>{ cur=i; draw(); };
+    li.append(b); route.append(li);
+  });
+}
+function draw(){
+  try{ localStorage.setItem('aice-w1-cur', String(cur)) }catch(e){}
+  drawRoute();
+  const L = LESSONS[cur], T = L.task;
+  learn.innerHTML = `
+  <article class="card">
+    <div class="eyebrow">${L.week}주차 · ${cur+1}번 역</div>
+    ${L.exam ? `<span class="exam">${L.exam}</span>` : ''}
+    <h2>${L.title}</h2>
+    ${L.body}
+    <div class="eyebrow">보기 코드</div>
+    <pre id="ex-code"></pre>
+    <div class="row"><button id="ex-run">보기 실행</button></div>
+    <div class="out" id="ex-out"></div>
+    <section class="task">
+      <h3>직접 해 보기</h3>
+      <p>${T.ask}</p>
+      <ul>${T.list.map(x=>`<li>${x}</li>`).join('')}</ul>
+      <label for="code-${cur}" class="note">답안 칸</label>
+      <textarea id="code-${cur}" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+      <div class="keys" id="keys"></div>
+      <div class="row">
+        <button class="primary" id="run">실행하고 채점</button>
+        <button id="hint">힌트</button>
+        <button id="show">정답 보기</button>
+        <button id="reset">처음으로</button>
+      </div>
+      <p class="note" id="hint-box" hidden></p>
+      <div class="out" id="out"></div>
+    </section>
+  </article>
+  <div class="nav">
+    <button id="prev" ${cur===0?'disabled':''}>← 이전 역</button>
+    <button id="next" ${cur===LESSONS.length-1?'disabled':''}>다음 역 →</button>
+  </div>`;
+  { const exEl = document.getElementById('ex-code'); exEl.textContent = '';
+    L.example.split('\n').forEach((ln, k)=>{ if(k) exEl.append('\n'); if(ln.trim().startsWith('#')){ const sp = document.createElement('span'); sp.className = 'cm'; sp.textContent = ln; exEl.append(sp); } else exEl.append(ln); }); }
+  const ta = document.getElementById('code-'+cur);
+  ta.value = drafts[cur] ?? T.start;
+  ta.addEventListener('input', ()=>saveDraft(cur, ta.value));
+  const keys = document.getElementById('keys');
+  [...KEYS.map(k=>[k,k,false]), ['↹','    ',false], ['줄바꿈','\n',true], ...WORDS.map(w=>[w,w,true])].forEach(([label,text,word])=>{
+    const b = document.createElement('button'); b.type='button'; b.textContent=label; if(word) b.className='word';
+    b.setAttribute('aria-label', label+' 넣기');
+    b.addEventListener('pointerdown', e=>e.preventDefault());
+    b.addEventListener('click', ()=>{ ta.focus(); insertAt(ta, text); });
+    keys.append(b);
+  });
+  const exBtn = document.getElementById('ex-run');
+  exBtn.onclick = async ()=>{
+    exBtn.disabled = true; exBtn.textContent = '실행 중…';
+    try{ renderResult(document.getElementById('ex-out'), await runCode(L.example, T.needSk ? { needSk:true, setup:T.setup } : { needPandas: !!T.needPandas, setup: T.setup || (T.needPandas ? 'import pandas as pd' : undefined) }), false); }
+    catch(e){ document.getElementById('ex-out').textContent = '실행하지 못했어요.'; }
+    exBtn.disabled = false; exBtn.textContent = '보기 실행';
+  };
+  const runBtn = document.getElementById('run');
+  runBtn.onclick = async ()=>{
+    runBtn.disabled = true; runBtn.textContent = '실행 중…';
+    try{
+      const r = await runCode(ta.value, { setup:T.setup, check:T.check, needPandas:T.needPandas, needSk:T.needSk });
+      renderResult(document.getElementById('out'), r, true);
+      if(r.verdict && r.verdict.ok && !done[cur]){ done[cur]=true; saveDone(); drawRoute(); }
+    }catch(e){ document.getElementById('out').textContent = '실행하지 못했어요. 아래 안내를 보세요.'; }
+    runBtn.disabled = false; runBtn.textContent = '실행하고 채점';
+  };
+  document.getElementById('hint').onclick = ()=>{ const h=document.getElementById('hint-box'); h.hidden=false; h.textContent='힌트: '+T.hint; };
+  document.getElementById('show').onclick = ()=>{ const h=document.getElementById('hint-box'); h.hidden=false; h.innerHTML=''; const p=document.createElement('pre'); p.textContent=T.answer; h.append('정답 예시 (보고 나서 직접 쳐 보세요)', p); };
+  document.getElementById('reset').onclick = ()=>{ ta.value = T.start; saveDraft(cur, ta.value); document.getElementById('out').innerHTML=''; };
+  document.getElementById('prev').onclick = ()=>{ if(cur>0){ cur--; draw(); window.scrollTo(0,0); } };
+  document.getElementById('next').onclick = ()=>{ if(cur<LESSONS.length-1){ cur++; draw(); window.scrollTo(0,0); } };
+}
+
+// 복습 카드
+const flashlist = document.getElementById('flashlist');
+FLASH.forEach(([f,b])=>{
+  const btn = document.createElement('button'); btn.setAttribute('aria-pressed','false');
+  btn.innerHTML = `<span class="front"></span><span class="back" hidden></span>`;
+  btn.querySelector('.front').textContent = f; btn.querySelector('.back').textContent = b;
+  btn.onclick = ()=>{ const bk=btn.querySelector('.back'); bk.hidden=!bk.hidden; btn.setAttribute('aria-pressed', String(!bk.hidden)); };
+  flashlist.append(btn);
+});
+const tabF = document.getElementById('tab-flash');
+const WEEKS = [1,2,3,4];
+function setTab(which){
+  WEEKS.forEach(w=>document.getElementById('tab-w'+w).setAttribute('aria-pressed', String(which==='w'+w))); tabF.setAttribute('aria-pressed', String(which==='flash'));
+  const learning = which !== 'flash';
+  document.getElementById('learn').hidden = !learning; document.querySelector('.route').hidden = !learning; document.getElementById('flash').hidden = learning;
+}
+function openWeek(w){
+  if(LESSONS[cur].week !== w){
+    // 그 주차에서 아직 안 푼 첫 역, 다 풀었으면 첫 역
+    const idx = LESSONS.map((L,i)=>i).filter(i=>LESSONS[i].week===w);
+    cur = idx.find(i=>!done[i]) ?? idx[0];
+  }
+  setTab('w'+w); draw(); window.scrollTo(0,0);
+}
+WEEKS.forEach(w=>{ document.getElementById('tab-w'+w).onclick = ()=>openWeek(w); });
+tabF.onclick = ()=>setTab('flash');
+const _origDraw = draw;
+draw = function(){ _origDraw(); setTab('w'+LESSONS[cur].week); };
+
+draw();
+</script>
+
+<p id="offline-msg" style="position:fixed;left:8px;right:8px;bottom:8px;margin:0;padding:8px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:.85rem;z-index:20" hidden></p>
+<script>
+// 인터넷 없이 쓰려고 파일을 휴대폰에 모두 받아 두는 부분 (처음 한 번, 약 100MB)
+(function(){
+  const m = document.getElementById('offline-msg');
+  function say(t, keep){ m.textContent = t; m.hidden = false; if(!keep) setTimeout(()=>{ m.hidden = true }, 6000); }
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('message', e=>{
+    const d = e.data || {};
+    if(d.type === 'progress') say('인터넷 없이 쓰려고 받는 중… ' + d.done + ' / ' + d.total + ' (와이파이에서 화면을 켜 두세요)', true);
+    if(d.type === 'ready') say('다 받았어요. 이제 인터넷 없이도 돼요.');
+    if(d.type === 'fail') say('받다가 끊겼어요. 와이파이에서 다시 열면 이어서 받아요.');
+  });
+  navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(r=>{
+    if(r.active) r.active.postMessage('check');
+  }).catch(()=>{});
+})();
+</script>
+</body></html>
